@@ -22,17 +22,24 @@ const wss = new WebSocketServer({ server });
 // Generate initial debris
 let debris = generateDebris(50);
 
-// Load 50 active satellites from CelesTrak
+// Load 50 active satellites from CelesTrak (TLE text parsing)
 let realSats = [];
 async function loadSatellites() {
   try {
-    // Use Node 22+ native fetch
-    const res = await fetch("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json");
-    const data = await res.json();
-    realSats = data.slice(0, 50).map((sat, i) => {
-      const satrec = satelliteJS.twoline2satrec(sat.TLE_LINE1, sat.TLE_LINE2);
-      return { id: i, name: sat.OBJECT_NAME, satrec };
-    });
+    const res = await fetch("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=2");
+    const text = await res.text();
+
+    const lines = text.split("\n").filter(l => l.trim() !== "");
+    realSats = [];
+    for (let i = 0; i < lines.length; i += 3) {
+      const name = lines[i].trim();
+      const tle1 = lines[i + 1].trim();
+      const tle2 = lines[i + 2].trim();
+      const satrec = satelliteJS.twoline2satrec(tle1, tle2);
+      realSats.push({ id: i / 3, name, satrec });
+      if (realSats.length >= 50) break; // limit to 50
+    }
+
     console.log("Satellites loaded:", realSats.length);
   } catch (err) {
     console.error("Error loading satellites:", err);
