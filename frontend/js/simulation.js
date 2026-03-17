@@ -11,8 +11,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 // Lighting
-const ambient = new THREE.AmbientLight(0x404040, 1.5);
-scene.add(ambient);
+scene.add(new THREE.AmbientLight(0x404040, 1.5));
 const point = new THREE.PointLight(0xffffff, 1);
 point.position.set(20,20,20);
 scene.add(point);
@@ -45,21 +44,19 @@ const loader = new GLTFLoader();
 const ws = new WebSocket("ws://localhost:3000");
 ws.onmessage = (msg) => {
   const { type, satellites: satsData, debris } = JSON.parse(msg.data);
+
   if(type==="init"){
     satsData.forEach(s=>{
       satellites[s.id] = s;
 
-      // Create glowing orbit trail
+      // Orbit trail
       const trailGeo = new THREE.BufferGeometry();
       const points = [];
-      for(let i=0;i<100;i++){
-        points.push(new THREE.Vector3(s.position.x,0,s.position.z));
-      }
+      for(let i=0;i<100;i++) points.push(new THREE.Vector3(s.position.x,0,s.position.z));
       trailGeo.setFromPoints(points);
       const trailMat = new THREE.LineBasicMaterial({color:0x00ffff, transparent:true, opacity:0.7});
-      const trail = new THREE.Line(trailGeo, trailMat);
-      scene.add(trail);
-      s.trail = trail;
+      s.trail = new THREE.Line(trailGeo, trailMat);
+      scene.add(s.trail);
 
       // Load satellite model
       loader.load("assets/satellite_model.glb", gltf=>{
@@ -69,7 +66,7 @@ ws.onmessage = (msg) => {
         s.mesh = model;
       });
 
-      // Sphere fallback if model fails
+      // Fallback sphere
       const geo = new THREE.SphereGeometry(0.2,12,12);
       const mat = new THREE.MeshPhongMaterial({color:0xff0000});
       const sphere = new THREE.Mesh(geo, mat);
@@ -77,7 +74,6 @@ ws.onmessage = (msg) => {
       satMeshes[s.id] = sphere;
     });
 
-    // Debris
     debris.forEach(d=>{
       const geo = new THREE.SphereGeometry(0.1,8,8);
       const mat = new THREE.MeshStandardMaterial({
@@ -88,7 +84,7 @@ ws.onmessage = (msg) => {
         opacity:0.7
       });
       const m = new THREE.Mesh(geo,mat);
-      m.position.set(d.x,d.y,d.z);
+      m.position.set(d.position.x,d.position.y,d.position.z);
       scene.add(m);
       debrisMeshes[d.id] = m;
     });
@@ -97,15 +93,13 @@ ws.onmessage = (msg) => {
   if(type==="update"){
     satsData.forEach(s=>{
       const sphere = satMeshes[s.id];
-      if(sphere){
-        sphere.position.lerp(new THREE.Vector3(s.position.x,0,s.position.z),0.1);
-      }
+      if(sphere) sphere.position.lerp(new THREE.Vector3(s.position.x,0,s.position.z),0.1);
       if(s.mesh){
         s.mesh.position.lerp(new THREE.Vector3(s.position.x,0,s.position.z),0.1);
         s.mesh.rotation.y += 0.01;
       }
 
-      // Update orbit trail
+      // Orbit trail update
       const trail = s.trail;
       if(trail){
         const positions = trail.geometry.attributes.position.array;
@@ -121,7 +115,6 @@ ws.onmessage = (msg) => {
         trail.geometry.attributes.position.needsUpdate = true;
       }
 
-      // Alert for AI collision avoidance
       if(s.target==="avoid debris"){
         alertDiv.innerText = `${s.name} avoiding debris! 🚀`;
         const audio = new Audio("assets/alert.mp3");
@@ -129,25 +122,23 @@ ws.onmessage = (msg) => {
       }
     });
 
-    // Update debris
     debris.forEach(d=>{
       const m = debrisMeshes[d.id];
-      if(m) m.position.set(d.x,d.y,d.z);
+      if(m) m.position.set(d.position.x,d.position.y,d.position.z);
     });
   }
 };
 
-// Animation loop
+// Animate
 function animate(){
   requestAnimationFrame(animate);
   earth.rotation.y += 0.001;
   controls.update();
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 
 animate();
 
-// Handle window resize
 window.addEventListener("resize", ()=>{
   camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
