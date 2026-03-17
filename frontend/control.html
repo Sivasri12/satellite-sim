@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Control Panel</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<h1>Ground Station Control</h1>
+
+<div style="text-align:center;">
+  <button id="voiceBtn">Start Voice Command</button>
+  <p id="voiceText" style="color: yellow;"></p>
+
+  <select id="satSelect"></select>
+  <select id="actionSelect">
+    <option value="avoid debris">Avoid Debris</option>
+    <option value="return orbit">Return to Orbit</option>
+  </select>
+  <button id="sendBtn">Send Command</button>
+</div>
+
+<script src="js/websocket.js"></script>
+<script src="js/control.js"></script>
+</body>
+</html>
