@@ -1,5 +1,4 @@
 const express = require("express");
-const fetch = require("node-fetch");
 const { WebSocketServer } = require("ws");
 const satelliteJS = require("satellite.js");
 const path = require("path");
@@ -27,6 +26,7 @@ let debris = generateDebris(50);
 let realSats = [];
 async function loadSatellites() {
   try {
+    // Use Node 22+ native fetch
     const res = await fetch("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json");
     const data = await res.json();
     realSats = data.slice(0, 50).map((sat, i) => {
