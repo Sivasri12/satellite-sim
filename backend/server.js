@@ -2,18 +2,29 @@ const express = require("express");
 const fetch = require("node-fetch");
 const { WebSocketServer } = require("ws");
 const satelliteJS = require("satellite.js");
+const path = require("path");
 const { generateDebris, updateDebris } = require("./satellites");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.use(express.static("../frontend")); // serve frontend static files
 
-const wss = new WebSocketServer({ port: PORT + 1 });
+// Serve frontend
+app.use(express.static(path.join(__dirname, "../frontend")));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/index.html"));
+});
 
+// Start HTTP server
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// WebSocket on same server
+const wss = new WebSocketServer({ server });
+
+// Generate initial debris
 let debris = generateDebris(50);
-let realSats = [];
 
 // Load 50 active satellites from CelesTrak
+let realSats = [];
 async function loadSatellites() {
   try {
     const res = await fetch("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json");
@@ -35,17 +46,16 @@ function getPosition(satrec) {
   const gmst = satelliteJS.gstime(now);
   const posVel = satelliteJS.propagate(satrec, now);
   if (!posVel.position) return { x: 0, y: 0, z: 0 };
-
   const geo = satelliteJS.eciToGeodetic(posVel.position, gmst);
   const R = 5; // Earth radius in Three.js units
   return {
     x: (geo.longitude / 180) * Math.PI * R,
     y: (geo.latitude / 90) * R,
-    z: geo.height / 1000 + R // altitude above Earth
+    z: geo.height / 1000 + R
   };
 }
 
-// Check for collision and generate AI command
+// Check for collision
 function predictCollision(pos, debrisList) {
   for (let d of debrisList) {
     const dx = pos.x - d.position.x;
@@ -57,8 +67,8 @@ function predictCollision(pos, debrisList) {
   return false;
 }
 
+// Generate AI voice command
 function generateAICommand(pos, debrisList, satId) {
-  // Simple left/right X and forward/back Z command
   let dx = 0, dz = 0;
   for (let d of debrisList) {
     const diffX = pos.x - d.position.x;
@@ -79,7 +89,7 @@ function generateAICommand(pos, debrisList, satId) {
   return { target: "Normal", voiceCommand: null };
 }
 
-// Broadcast satellite & debris updates
+// Broadcast satellites & debris every 50ms
 function broadcast() {
   debris = updateDebris(debris);
   const satellitesData = realSats.map(s => {
@@ -100,6 +110,4 @@ function broadcast() {
   wss.clients.forEach(c => c.readyState === 1 && c.send(payload));
 }
 
-setInterval(broadcast, 50); // 20 FPS
-
-app.listen(PORT, () => console.log("Backend running on port " + PORT));
+setInterval(broadcast, 50);
