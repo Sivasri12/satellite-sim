@@ -32,12 +32,15 @@ async function loadSatellites() {
     const lines = text.split("\n").filter(l => l.trim() !== "");
     realSats = [];
     for (let i = 0; i < lines.length; i += 3) {
+      // Skip incomplete sets of lines
+      if (!lines[i] || !lines[i + 1] || !lines[i + 2]) continue;
+
       const name = lines[i].trim();
       const tle1 = lines[i + 1].trim();
       const tle2 = lines[i + 2].trim();
       const satrec = satelliteJS.twoline2satrec(tle1, tle2);
       realSats.push({ id: i / 3, name, satrec });
-      if (realSats.length >= 50) break; // limit to 50
+      if (realSats.length >= 50) break; // limit to 50 satellites
     }
 
     console.log("Satellites loaded:", realSats.length);
